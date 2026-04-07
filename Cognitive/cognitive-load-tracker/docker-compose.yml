@@ -1,0 +1,50 @@
+# Docker Compose 配置 - 认知负荷数据采集系统
+version: '3.8'
+
+services:
+  cognitive-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cognitive-load-tracker:latest
+    container_name: cognitive-load-tracker
+    runtime: nvidia  # 需要 NVIDIA Container Toolkit 支持
+    environment:
+      - DISPLAY=${DISPLAY}
+      - CUDA_VISIBLE_DEVICES=0
+    volumes:
+      # 共享数据目录
+      - ./data:/app/data
+      # 共享模型目录
+      - ./models:/app/models
+      # X11 授权文件
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # USB 摄像头设备
+      - /dev/video0:/dev/video0
+    devices:
+      - /dev/video0:/dev/video0
+    network_mode: host
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+
+  # CPU 版本的配置（无 NVIDIA GPU 时使用）
+  cognitive-tracker-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    image: cognitive-load-tracker:cpu
+    container_name: cognitive-load-tracker-cpu
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /dev/video0:/dev/video0
+    devices:
+      - /dev/video0:/dev/video0
+    network_mode: host
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
