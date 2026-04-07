@@ -1,170 +1,133 @@
-# 眼动时序数据分组与预测
+# 眼动时序数据聚类与实时认知负荷预测
 
-本项目用于对眼动时序数据进行聚类分析，并可基于聚类结果训练分类器，支持对新会话进行预测与可视化。
+本模块负责对眼动时序数据进行聚类分析，基于聚类结果训练监督分类器，并支持实时任务级认知负荷预测。
 
 ## 功能概览
-- 聚类：KMeans / 层次聚类 / DBSCAN
-- 特征提取：从多 CSV 时序数据中提取统计与时序特征
-- 输出可视化：PCA 2D 散点图
-- 监督分类：SVM / XGBoost
-- 新样本预测：输出所属 cluster 与 2D 坐标
 
-### 1. 安装依赖
+| 功能 | 脚本 | 说明 |
+|------|------|------|
+| 聚类 | `cluster_cognitive_data.py` | KMeans / 层次聚类 / DBSCAN，支持 session 级和 task 级 |
+| 特征提取 | `eyerunn_cluster/` | 从多 CSV 时序数据中提取统计与时序特征 |
+| 负荷映射 | `summarize_cluster_load.py` | 自动将 cluster 映射为相对认知负荷等级（1-4） |
+| 监督训练 | `train_classifier.py` | SVM / XGBoost，将聚类结果固化为可预测模型 |
+| 实时预测 | `realtime_session_monitor.py` | 监听采集目录，实时调用任务级模型预测认知负荷 |
+| 预测可视化 | `realtime_dashboard.py` | Tkinter 面板，实时展示最新预测结果 |
+
+## 1. 安装依赖
+
 ```bash
+cd Model/ET_model
 python -m pip install -r requirements.txt
 ```
 
-### 2. 放入你的数据
-支持两种数据格式，选一种即可。
+## 聚类产物说明
 
-**格式 A（推荐）：每个 session 一个文件夹**
-```
-exam_0/
-  cognitive_data/
-    session_001/
-      gaze_data.csv
-      fixations.csv
-      blinks.csv
-      events.csv
-      aoi_transitions.csv
-      tasks.csv
-      session_meta.json
-    session_002/
-      ...
-```
+聚类完成后在指定 `--out_dir` 下生成：
 
-**格式 B：所有 CSV 放同一目录**
-```
-exam_0/
-  data/
-    a.csv
-    b.csv
-    c.csv
-    d.csv
-    e.csv
-    f.csv
-    meta.json
-```
+| 文件 | 说明 |
+|------|------|
+| `features.csv` | 每个样本的特征向量（索引为 `sample_key`） |
+| `clusters.csv` | 聚类标签（`sample_key, cluster`） |
+| `embedding_2d.csv` | PCA 2D 坐标（便于可视化） |
+| `cluster_plot.png` | 聚类散点图 |
+| `pca_model.joblib` | 包含 pipeline（imputer + scaler + weighter）与 PCA，用于后续对齐 transform |
+| `cluster_load_summary.csv` | 每个 cluster 的关键特征均值 + 相对认知负荷等级 |
+| `cluster_load_mapping.csv` | cluster → 相对认知负荷等级的精简映射表 |
 
-### 3. 开始分组
-格式 A：
-```bash
-# 在 EyeTrace 项目根目录下，直接使用 data/ 作为根目录（包含多个 session 子目录）
-python Model/ET_model/cluster_cognitive_data.py --data_root data --unit session --k 4 --out_dir Model/ET_model/outputs
-```
+## 当前已训练模型（已纳入 Git 跟踪）
 
-可选参数：
-- `--time_col` / `--id_col`: 指定时间列与样本列名
-- `--csv_glob`: CSV 匹配规则（默认 *.csv）
-- `--json_path`: 指定 JSON 文件
+### 任务级聚类 + 监督模型
 
-## 查看结果（输出说明）
-聚类完成后会在 `outputs/` 目录生成：
-- `features.csv`：每个样本的特征向量
-- `clusters.csv`：聚类标签
-- `embedding_2d.csv`：2D 坐标（PCA）
-- `cluster_plot.png`：聚类可视化图（可选）
-- `pca_model.joblib`：用于预测新样本坐标的 PCA 模型
+训练基于 **task 级聚类**（粒度：每个 session 中的每个 task 一条样本），使用加权特征突出认知负荷相关维度。
 
-## 查看结果
-输出在 `outputs/` 目录：
-- `clusters.csv`：每个样本属于哪一类  
-- `embedding_2d.csv`：二维坐标  
-- `cluster_plot.png`：可视化图  
-- `features.csv`：特征文件（后续训练用）
-- `cluster_load_summary.csv`：每个 cluster 的关键特征均值 + 相对认知负荷等级
-- `cluster_load_mapping.csv`：cluster → 相对认知负荷等级的精简映射表
+**模型路径：**
+- 聚类输出 & 模板：`Model/ET_model/outputs_task_cluster/`
+- 监督分类器：`Model/ET_model/outputs_supervised_task/model_svm.joblib`
 
-## 训练分类器（让新数据可预测）
-训练步骤基于 `outputs/` 里的聚类结果：
+**聚类结果（6 个 cluster）：**
 
-**1）用 SVM 训练（推荐先用这个）**
-```bash
-python Model/ET_model/train_classifier.py --features outputs/features.csv --labels outputs/clusters.csv --algo svm --out_dir outputs_supervised
-```
+| cluster | 相对负荷等级 | 负荷标签 |
+|---------|------------|---------|
+| 0 | Level 2 | 低负荷 / 轻量任务型 |
+| 1 | Level 2 | 低负荷 / 轻量任务型 |
+| 2 | Level 3 | 中高负荷 / 信息整合型 |
+| 3 | Level 4 | 高负荷 / 持续专注解题型 |
+| 4 | Level 3 | 中高负荷 / 信息整合型 |
+| 5 | Level 1 | 极低负荷 / 轻松浏览型 |
 
-**2）用 XGBoost 训练（可选）**
-```bash
-python Model/ET_model/train_classifier.py --features outputs/features.csv --labels outputs/clusters.csv --algo xgboost --out_dir outputs_supervised_xgb
-```
+> 注意：监督分类器训练时过滤了 `::task=none` 等无效任务，实际参与训练的样本数为 50，对应 4 个 cluster（0、1、2、3）。后续新增数据后可重新训练以覆盖全部 cluster。
 
-**训练后会生成：**
-- `model_*.joblib`：训练好的模型  
-- `metrics.json`：训练指标  
-- `test_predictions.csv`：测试集预测（如果样本足够）  
+**监督模型指标（SVM，5 折交叉验证）：**
+- 训练样本：50 个，187 特征
+- 交叉验证准确率：74% ± 8%
+- 测试集准确率：100%（10 个留出样本）
 
-> 样本太少时会跳过测试集评估，这是正常的。
+> 由于样本量有限，指标仅供参考。后续在数据量增加后建议重新评估。
 
-## 预测新数据（离线单 session）
-```bash
-python Model/ET_model/predict_single_session.py \
-  --session_dir data/20260124_140152 \
-  --classifier_model Model/ET_model/outputs_supervised/model_svm.joblib \
-  --pca_model Model/ET_model/outputs/pca_model.joblib \
-  --features_template Model/ET_model/outputs/features.csv
-```
-预测结果 `PredictionResult` 中同时包含：
-- `predicted_cluster`：所属聚类
-- `coordinates_2d`：二维坐标
-- `relative_load_level` / `relative_load_label`：基于当前聚类分析得到的相对认知负荷等级
+**关键配置：**
+- 特征加权配置：`Model/ET_model/feature_weights_task.json`
+- 强调维度：`task__duration__mean`（×3.0）、`task__subjective_effort__mean`（×1.8）、`trans__n`（×2.5）等
+- 特征前缀筛选：`fix__ / blink__ / trans__ / task__`
 
-## 已训练好的模型位置（示例）
+## 实时预测使用方法
 
-- `outputs_supervised/`：基于 **session 级聚类** 训练的监督模型  
-  - `model_svm.joblib` / `model_xgboost.joblib`
-  - `metrics.json` 等训练指标
-- `outputs_supervised_task/`：基于 **任务级聚类** 训练的监督模型（推荐用于实时任务级预测）  
-  - `model_svm.joblib`：当前默认使用的任务级 SVM 模型  
-  - `metrics.json`：当前样本量下的训练指标（主要用于 sanity check）
-
-> 这两个目录中的模型文件都已经纳入 Git 管理，克隆仓库后可直接加载使用（无需重新训练），具体训练过程与配置在 `WORKLOG.md` 的阶段 C/G 中有完整记录。
-
-## 实时任务级预测与总控脚本（核心入口）
-
-> 详细设计、试跑记录和字段说明，见 `WORKLOG.md` 中的“阶段 G：任务级监督模型 + 实时预测”部分。下面只给一个“最少上手说明”。
-
-### 总控脚本：`realtime_session_monitor.py`
-
-- 功能：  
-  - 持续监听 `data/xxxxxx_realtime/` 目录下由采集端写入的 AOI/眼动数据  
-  - 实时聚合“当前任务”的特征，并调用**任务级监督模型**预测其所属 cluster + 相对负荷等级  
-  - 将每一次预测追加写入 `realtime_predictions_task_supervised.jsonl`
-- 依赖的已训练模型与模板：  
-  - `outputs_task_cluster/features.csv`：任务级特征模板（对齐列名/顺序）  
-  - `outputs_task_cluster/pca_model.joblib`：任务级 PCA + 预处理 pipeline  
-  - `outputs_supervised_task/model_svm.joblib`：任务级监督 SVM 模型
-
-### 常见报错：特征维度不匹配（例如 191 vs 185）
-
-如果你看到类似报错：
-
-- `X has 191 features, but SimpleImputer is expecting 185 features as input.`
-
-含义是：**预测时喂给模型的特征列数/顺序** 与 **该模型训练时拟合(SimpleImputer/Pipeline fit)的特征列数/顺序** 不一致（常见原因：`features.csv` 模板增删了列，但模型还是旧的）。
-
-解决方式（推荐按优先级）：
-
-- **重新训练模型**：用同一套 `features.csv` + `clusters.csv` 重新训练，产出新的 `model_*.joblib`。
-- **确保模板与模型来自同一次输出**：`--features_template`（或 `--task_features_template`）应指向训练该模型时那份 `features.csv`。
-- **使用最新代码**：新版本会在 `model_*.joblib` 中保存训练用 `feature_columns`，预测时优先按模型列名对齐，并在模板不一致时打印明确警告。
-
-### 典型运行方式（示例）
-
-在 EyeTrace 项目根目录下：
+### 通过总控脚本一键启动（推荐）
 
 ```bash
 cd C:\Users\YNS\Desktop\EyeTrace
-py -3.10 Model\ET_model\realtime_session_monitor.py ^
-  --data_root data ^
-  --task_classifier Model\ET_model\outputs_supervised_task\model_svm.joblib ^
-  --task_pca_model Model\ET_model\outputs_task_cluster\pca_model.joblib ^
-  --task_features_template Model\ET_model\outputs_task_cluster\features.csv
+py -3.10 EyeTrace_controller.py --with-monitor
 ```
 
-- 采集端负责持续往 `data/20260227_233556_realtime/` 这类目录写入 AOI/眼动 CSV；  
-- 总控脚本会周期性读取最新数据、更新特征，并将预测结果写入：  
-  - `Model/ET_model/realtime_predictions_task_supervised.jsonl`
+这会同时启动：采集窗口（前台）+ 准实时监控（后台）+ 预测面板（后台）。
+
+### 直接调用监控脚本
+
+```bash
+cd C:\Users\YNS\Desktop\EyeTrace
+py -3.10 Model\ET_model\realtime_session_monitor.py --watch_dirs data --interval 10
+```
+
+参数说明：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--watch_dirs` | `Cognitive/data/cognitive_study data` | 要监控的数据根目录 |
+| `--interval` | `10` | 轮询间隔（秒） |
+| `--classifier_model` | `Model/ET_model/outputs_supervised_task/model_svm.joblib` | 任务级分类器 |
+| `--pca_model` | `Model/ET_model/outputs_task_cluster/pca_model.joblib` | 任务级 PCA 模型 |
+| `--features_template` | `Model/ET_model/outputs_task_cluster/features.csv` | 特征模板（对齐列名/顺序） |
+| `--log_jsonl` | `Model/ET_model/realtime_predictions_task_supervised.jsonl` | 预测结果输出文件 |
+| `--run_once` | - | 只扫描一次后退出（调试用） |
+
+### 实时预测输出字段
+
+每条预测记录包含：
+
+| 字段 | 说明 |
+|------|------|
+| `session_dir` | 采集 session 目录路径 |
+| `sample_key` | 样本标识，格式 `session_id::task=task_xxx` |
+| `task_id` | 任务 ID（`task_001` 等） |
+| `predicted_cluster` | 预测的 cluster ID |
+| `coordinates_2d` | PCA 2D 坐标 `[x, y]` |
+| `relative_load_level` | 相对认知负荷等级（1-4） |
+| `relative_load_label` | 相对认知负荷标签（文本） |
+| `probabilities` | 各 cluster 的预测概率分布 |
+
+## 常见报错：特征维度不匹配
+
+```
+X has 191 features, but SimpleImputer is expecting 185 features as input.
+```
+
+含义：预测时的特征列数/顺序与模型训练时不一致。
+
+解决方式：
+1. **重新训练模型**：确保 `--features_template` 指向的 `features.csv` 与训练时使用的是同一份
+2. **使用最新代码**：新版本在 `model_*.joblib` 中保存了 `feature_columns`，预测时会自动对齐并在不一致时打印警告
 
 ## 如果分组不满意怎么办
-1) 打开 `outputs/clusters.csv`，手动改成你认为正确的类别  
-2) 重新运行 `Model/ET_model/train_classifier.py`，模型会用你的修正结果再训练  
+
+1) 打开 `outputs_task_cluster/clusters.csv`，手动改成你认为正确的类别
+2) 重新运行 `train_classifier.py` 重新训练，模型会用你的修正结果再训练
+3) 运行 `summarize_cluster_load.py --mapping_mode auto` 重新生成负荷映射

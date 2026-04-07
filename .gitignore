@@ -61,9 +61,13 @@ desktop.ini
 *.tmp
 *.bak
 
-# --- Large model weights / artifacts (do not commit) ---
-*.joblib
-*.pkl
+# --- Large pre-trained models (可下载资源，不直接进仓库)
+Cognitive/models/L2CSNet_gaze360.pkl
+
+# --- Trained model artifacts (.joblib) ---
+# 注意：模型文件（outputs_supervised_task/, outputs_task_cluster/ 等目录下的 .joblib）
+# 需要纳入版本控制，以便克隆后可直接使用实时预测功能。
+# 仅排除大体积预训练权重文件：
 *.pth
 *.pt
 *.onnx

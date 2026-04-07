@@ -242,16 +242,25 @@ py -3.10 Model\ET_model\train_classifier.py ^
 ### G3. 实时监控典型运行方式
 
 - 工作目录：项目根 `C:\Users\YNS\Desktop\EyeTrace`
-- 典型调用（示意，实际参数以脚本内 `argparse` 为准，后续可继续补充）：
+- 推荐方式（使用总控脚本，一键启动采集+监控+面板）：
 
 ```bash
 cd C:\Users\YNS\Desktop\EyeTrace
-py -3.10 Model\ET_model\realtime_session_monitor.py ^
-  --data_root data ^
-  --task_classifier Model\ET_model\outputs_supervised_task\model_svm.joblib ^
-  --task_pca_model Model\ET_model\outputs_task_cluster\pca_model.joblib ^
-  --task_features_template Model\ET_model\outputs_task_cluster\features.csv
+py -3.10 EyeTrace_controller.py --with-monitor
 ```
+
+- 直接调用监控脚本（不启动采集和面板）：
+
+```bash
+cd C:\Users\YNS\Desktop\EyeTrace
+py -3.10 Model\ET_model\realtime_session_monitor.py --watch_dirs data --interval 10
+```
+
+参数与默认值：
+- `--watch_dirs`：默认监控 `Cognitive/data/cognitive_study` 和 `data`
+- `--classifier_model`：默认 `Model/ET_model/outputs_supervised_task/model_svm.joblib`
+- `--pca_model`：默认 `Model/ET_model/outputs_task_cluster/pca_model.joblib`
+- `--features_template`：默认 `Model/ET_model/outputs_task_cluster/features.csv`
 
 - 实时运行中，脚本会周期性读取最新 session 目录（形如 `data/20260227_233556_realtime/`）下的 AOI/眼动 CSV：
   - 聚合当前任务的特征（与任务级特征模板对齐）

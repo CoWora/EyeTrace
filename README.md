@@ -39,3 +39,23 @@
 
 本项目当前不包含/不需要浏览器扩展；相关目录已在根 `.gitignore` 中默认忽略。
 
+### 4) 一键总控脚本
+
+从项目根目录使用 `EyeTrace_controller.py` 可一键启动采集与预测系统：
+
+```bash
+cd C:\Users\YNS\Desktop\EyeTrace
+
+# 只做数据采集
+py -3.10 EyeTrace_controller.py
+
+# 采集 + 准实时预测 + 可视化面板
+py -3.10 EyeTrace_controller.py --with-monitor
+```
+
+| 命令 | 采集 | 监控 | 面板 |
+|------|:----:|:----:|:----:|
+| `EyeTrace_controller.py` | ✅ 前台运行 | ❌ | ❌ |
+| `EyeTrace_controller.py --with-monitor` | ✅ 前台运行 | ✅ 后台运行 | ✅ 后台运行 |
+
+> 使用 `--with-monitor` 时，监控和面板在后台运行，不影响采集窗口显示。采集结束后会自动终止后台进程。
