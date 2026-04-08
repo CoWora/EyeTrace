@@ -1,0 +1,5 @@
+cluster,relative_load_level,relative_load_label
+0,2,低负荷 / 轻量任务型
+1,2,低负荷 / 轻量任务型
+2,3,中高负荷 / 信息整合型
+3,4,高负荷 / 持续专注解题型

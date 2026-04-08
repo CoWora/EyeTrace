@@ -8,15 +8,21 @@
 - `Model/ET_model/`: 特征提取、聚类、监督分类、实时预测输出（含 `realtime_session_monitor.py`）
 
 更详细的使用说明请查看各子目录 README：
+
 - `Cognitive/cognitive-load-tracker/README.md`
 - `Model/ET_model/README.md`
+- `WORKLOG.md` — 全项目工作日志（含立项、技术选型、各阶段关键决策）
+- `Model/ET_model/WORKLOG.md` — 模型模块详细日志
 
 ## 重要：隐私与大文件
 
 本仓库默认 **不提交** 以下内容（已在根 `.gitignore` 中屏蔽）：
 - 采集数据：`data/`、`Cognitive/cognitive-load-tracker/data/` 等
-- 大模型/权重/产物：`*.pkl/*.joblib/*.pt/*.pth/*.tflite` 等
+- 预训练大权重文件：`*.pkl`（如 `L2CSNet_gaze360.pkl`）、`*.pth`、`*.pt`、`*.onnx`、`*.tflite`
+- 实时预测输出：`Model/ET_model/realtime_predictions*.jsonl`
 - 可能含个人信息的材料：`*.docx/*.pdf` 等
+- 浏览器扩展目录：`luogu-gaze-extension/`
+- 采集端隐私数据目录：`Cognitive/cognitive-load-tracker/cognitive_data/` 等
 
 如果需要分享演示数据，建议放到 `examples/`（脱敏、小体积），或用网盘/Release 单独提供下载链接。
 

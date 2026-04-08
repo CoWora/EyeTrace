@@ -16,3 +16,7 @@ data/
 !outputs/
 !outputs/cluster_load_mapping.csv
 !outputs/cluster_load_summary.csv
+
+# Allow committing task-level clustering outputs (models are pre-trained & reproducible)
+!outputs_task_cluster/
+!outputs_supervised_task/
